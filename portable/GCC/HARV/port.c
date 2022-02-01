@@ -91,7 +91,7 @@ uint64_t ullNextTime = 0ULL;
 const uint64_t *pullNextTime = &ullNextTime;
 const size_t uxTimerIncrementsForOneTick = ( size_t ) ( ( configCPU_CLOCK_HZ ) / ( configTICK_RATE_HZ ) ); /* Assumes increment won't go over 32-bits. */
 uint32_t const ullMachineTimerCompareRegisterBase = configMTIMECMP_BASE_ADDRESS;
-volatile uint64_t * pullMachineTimerCompareRegister = NULL;
+//volatile uint64_t * pullMachineTimerCompareRegister = NULL;
 
 /* Holds the critical nesting value - deliberately non-zero at start up to
  * ensure interrupts are not accidentally enabled before the scheduler starts. */
@@ -128,24 +128,33 @@ size_t xTaskReturnAddress = ( size_t ) portTASK_RETURN_ADDRESS;
     void vPortSetupTimerInterrupt( void )
     {
     uint32_t ulCurrentTimeHigh, ulCurrentTimeLow;
-    volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( ( configMTIME_BASE_ADDRESS ) + 4UL ); /* 8-byte type so high 32-bit word is 4 bytes up. */
-    volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( configMTIME_BASE_ADDRESS );
+    // volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( ( configMTIME_BASE_ADDRESS ) + 4UL ); /* 8-byte type so high 32-bit word is 4 bytes up. */
+    // volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( configMTIME_BASE_ADDRESS );
+       uint32_t pulTimeHigh = 0;
+    __asm volatile( "csrr %0, 0xb81" : "=r"(pulTimeHigh) );
+       uint32_t pulTimeLow = 0;
+    __asm volatile( "csrr %0, 0xb01" : "=r"(pulTimeLow) );
+
+
+
     volatile uint32_t ulHartId;
 
         __asm volatile( "csrr %0, mhartid" : "=r"( ulHartId ) );
-        pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase + ( ulHartId * sizeof( uint64_t ) ) );
+        //pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase + ( ulHartId * sizeof( uint64_t ) ) );
 
         do
         {
-            ulCurrentTimeHigh = *pulTimeHigh;
-            ulCurrentTimeLow = *pulTimeLow;
-        } while( ulCurrentTimeHigh != *pulTimeHigh );
+            ulCurrentTimeHigh = pulTimeHigh;
+            ulCurrentTimeLow = pulTimeLow;
+        } while( ulCurrentTimeHigh != pulTimeHigh );
 
         ullNextTime = ( uint64_t ) ulCurrentTimeHigh;
         ullNextTime <<= 32ULL; /* High 4-byte word is 32-bits up. */
         ullNextTime |= ( uint64_t ) ulCurrentTimeLow;
         ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;
-        *pullMachineTimerCompareRegister = ullNextTime;
+
+        //*pullMachineTimerCompareRegister = ullNextTime;
+				asm volatile("csrw 0xbc0, %0" ::"r"(ullNextTime));
 
         /* Prepare the time to use after the next tick interrupt. */
         ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;

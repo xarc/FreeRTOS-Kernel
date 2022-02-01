@@ -88,7 +88,7 @@ definitions. */
 
 .extern vTaskSwitchContext
 .extern xTaskIncrementTick
-.extern pullMachineTimerCompareRegister
+// .extern pullMachineTimerCompareRegister
 .extern pullNextTime
 .extern uxTimerIncrementsForOneTick /* size_t type so 32-bit on 32-bit core and 64-bits on 64-bit core. */
 .extern xTaskReturnAddress
@@ -98,7 +98,7 @@ definitions. */
 /*-----------------------------------------------------------*/
 
 .macro portUPDATE_MTIMER_COMPARE_REGISTER
-    load_x t0, pullMachineTimerCompareRegister  /* Load address of compare register into t0. */
+    // load_x t0, pullMachineTimerCompareRegister  /* Load address of compare register into t0. */
     load_x t1, pullNextTime                     /* Load the address of ullNextTime into t1. */
 
     #if( __riscv_xlen == 32 )
@@ -107,9 +107,12 @@ definitions. */
         li t4, -1
         lw t2, 0(t1)                /* Load the low word of ullNextTime into t2. */
         lw t3, 4(t1)                /* Load the high word of ullNextTime into t3. */
-        sw t4, 0(t0)                /* Low word no smaller than old value to start with - will be overwritten below. */
-        sw t3, 4(t0)                /* Store high word of ullNextTime into compare register.  No smaller than new value. */
-        sw t2, 0(t0)                /* Store low word of ullNextTime into compare register. */
+        //sw t4, 0(t0)                /* Low word no smaller than old value to start with - will be overwritten below. */
+        //sw t3, 4(t0)                /* Store high word of ullNextTime into compare register.  No smaller than new value. */
+        //sw t2, 0(t0)                /* Store low word of ullNextTime into compare register. */
+        ///////////////////////////////////////////////////////////////////////
+        csrw 0xBC0, t2
+
         lw t0, uxTimerIncrementsForOneTick  /* Load the value of ullTimerIncrementForOneTick into t0 (could this be optimized by storing in an array next to pullNextTime?). */
         add t4, t0, t2              /* Add the low word of ullNextTime to the timer increments for one tick (assumes timer increment for one tick fits in 32-bits). */
         sltu t5, t4, t2             /* See if the sum of low words overflowed (what about the zero case?). */
