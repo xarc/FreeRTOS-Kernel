@@ -280,14 +280,14 @@ freertos_risc_v_application_exception_handler:
     csrr t0, mcause     /* For viewing in the debugger only. */
     csrr t1, mepc       /* For viewing in the debugger only */
     csrr t2, mstatus    /* For viewing in the debugger only */
-    j freertos_risc_v_application_exception_handler
+    j .
 /*-----------------------------------------------------------*/
 
 freertos_risc_v_application_interrupt_handler:
     csrr t0, mcause     /* For viewing in the debugger only. */
     csrr t1, mepc       /* For viewing in the debugger only */
     csrr t2, mstatus    /* For viewing in the debugger only */
-    j freertos_risc_v_application_interrupt_handler
+    j .
 /*-----------------------------------------------------------*/
 
 .section .text.freertos_risc_v_exception_handler
@@ -323,6 +323,7 @@ exit_without_context_switch:
 /*-----------------------------------------------------------*/
 
 .section .text.freertos_risc_v_trap_handler
+.align 8
 freertos_risc_v_trap_handler:
     portcontextSAVE_CONTEXT_INTERNAL
 
@@ -337,7 +338,7 @@ asynchronous_interrupt:
     j handle_interrupt
 
 synchronous_exception:
-    addi a1, a1, 4                      /* Synchronous so update exception return address to the instruction after the instruction that generated the exeption. */
+    addi a1, a1, 4                      /* Synchronous so update exception return address to the instruction after the instruction that generated the exception. */
     store_x a1, 0( sp )                 /* Save updated exception return address. */
     load_x sp, xISRStackTop             /* Switch to ISR stack. */
     j handle_exception
