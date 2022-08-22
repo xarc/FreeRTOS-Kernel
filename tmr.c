@@ -17,7 +17,7 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...) {
   va_start(argp, a);
 
   int i = 0;
-  for (; i < TMR_QUEUE_LENGTH; i++) {
+  for (; i < TMR_QUEUE_LENGTH - 1; i++) {
     enqueue(&prvTaskQueue, va_arg(argp, TASK_FUNCTION_PTR()));
     prvDataQueue[i] = NULL;
   }
@@ -28,10 +28,12 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...) {
 /// Find task queue position
 int prvTmrFindIndex(TASK_FUNCTION_PTR(f)) {
   int i = 0;
-  for (; i < TMR_QUEUE_LENGTH; i++) {
-    if (prvTaskQueue->val == f) {
+  node_t *q = prvTaskQueue;
+  for (; i < TMR_QUEUE_LENGTH - 1; i++) {
+    if (q->val == f) {
       return i;
     }
+    q++;
   }
   return -1;
 }

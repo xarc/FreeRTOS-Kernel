@@ -17,4 +17,7 @@ void vTmrInit(TASK_FUNCTION_PTR(f), ...);
 // Print current setup tasks to stdout.
 void vPrintTasks();
 
+/// TMR insert task value to storage
+void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data);
+
 #endif // TMR_H_
