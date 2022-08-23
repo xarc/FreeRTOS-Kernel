@@ -20,4 +20,10 @@ void vPrintTasks();
 /// TMR insert task value to storage
 void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data);
 
+// check if data is full
+int iTmrPullData();
+
+// check if data is full
+void *iTmrDataByIndex(int);
+
 #endif // TMR_H_
