@@ -4,7 +4,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "include/tmr.h"
 #include "tmr.h"
 #include "tmr_queue.h"
 
@@ -32,7 +34,7 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...) {
 int prvTmrFindIndex(TASK_FUNCTION_PTR(f)) {
   int i = 0;
   node_t *q = prvTaskQueue;
-  for (; i <= TMR_QUEUE_LENGTH; i++) {
+  for (; i < TMR_QUEUE_LENGTH; i++) {
     if (q->val == f) {
       return i;
     }
@@ -56,7 +58,7 @@ void vPrintTasks() { return print_list(prvTaskQueue); }
 
 int iTmrPullData() {
   int i = 0;
-  for (; i < TMR_QUEUE_LENGTH - 1; i++) {
+  for (; i <= TMR_QUEUE_LENGTH - 1; i++) {
     if (prvDataQueue[i] == NULL) {
       return 1;
     }
@@ -69,4 +71,50 @@ void *iTmrDataByIndex(int i) {
     return NULL;
   }
   return prvDataQueue[i];
+}
+
+#define CMP(type, index, counter, a, b)                                        \
+  ({                                                                           \
+    if ((type *)a[i] != (type *)b[i]) {                                        \
+      counter++;                                                               \
+    }                                                                          \
+  })
+
+#define SWITCH_CMP(type, index, counter, a, b)                                 \
+  {                                                                            \
+    switch (type) {                                                            \
+    case CHAR:                                                                 \
+      CMP(char, index, counter, a, b);                                         \
+      break;                                                                   \
+    case INT:                                                                  \
+      CMP(int, index, counter, , b);                                           \
+      break;                                                                   \
+    case FLOAT:                                                                \
+      CMP(float, index, counter, a, b);                                        \
+      break;                                                                   \
+    case DOUBLE:                                                               \
+      CMP(double, index, counter, a, b);                                       \
+      break;                                                                   \
+    }                                                                          \
+  }
+
+void *vTmrCompare(TYPE t) {
+  void *data[TMR_QUEUE_LENGTH] = {};
+  memcpy(data, prvDataQueue, sizeof(data));
+
+  int i;
+  int all = 0;
+  for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
+    SWITCH_CMP(t, i, all, data, prvDataQueue);
+  }
+
+  if (all == TMR_QUEUE_LENGTH) {
+    return *data;
+  }
+
+  if (all == 2) {
+    return *data;
+  }
+
+  return 0;
 }

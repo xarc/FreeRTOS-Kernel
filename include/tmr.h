@@ -9,6 +9,8 @@
 #define TMR_QUEUE_LENGTH 3
 #endif
 
+typedef enum { CHAR, INT, FLOAT, DOUBLE } TYPE;
+
 /// Function pointer to FreeRTOS
 #define TASK_FUNCTION_PTR(x) void (*x)(void *)
 
