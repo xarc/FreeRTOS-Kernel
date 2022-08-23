@@ -2,7 +2,7 @@
 #include "tmr.h"
 
 void enqueue(node_t **head, TASK_FUNCTION_PTR(f)) {
-  node_t *new_node = malloc(sizeof(node_t));
+  node_t *new_node = pvPortMalloc(sizeof(node_t));
   if (!new_node)
     return;
 
@@ -26,7 +26,7 @@ void *dequeue(node_t **head) {
   }
 
   retval = current->val;
-  free(current);
+  vPortFree(current);
 
   if (prev)
     prev->next = NULL;
