@@ -90,7 +90,7 @@ void *vTmrCompare(TYPE t) {
 
   int i;
   for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-    data[i] = prvDataQueue[0];
+    data[i] = prvDataQueue[i];
   }
 
   switch (t) {
