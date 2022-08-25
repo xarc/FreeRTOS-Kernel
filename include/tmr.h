@@ -31,4 +31,7 @@ void *iTmrDataByIndex(int);
 // compare values in queue
 void *vTmrCompare(TYPE);
 
+// Clean data queue;
+void vTmrCleanDataQueue();
+
 #endif // TMR_H_

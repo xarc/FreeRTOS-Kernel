@@ -73,6 +73,14 @@ void *iTmrDataByIndex(int i) {
   return prvDataQueue[i];
 }
 
+void vTmrCleanDataQueue() {
+  int i;
+
+  for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
+    prvDataQueue[i] = NULL;
+  }
+}
+
 void *vTmrCompare(TYPE t) {
   if (iTmrPullData())
     return NULL;
