@@ -1,5 +1,7 @@
-#include "tmr_queue.h"
+#include "FreeRTOS.h"
+
 #include "tmr.h"
+#include "tmr_queue.h"
 
 void enqueue(node_t **head, TASK_FUNCTION_PTR(f)) {
   node_t *new_node = pvPortMalloc(sizeof(node_t));

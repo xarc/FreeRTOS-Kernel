@@ -28,4 +28,7 @@ int iTmrPullData();
 // check if data is full
 void *iTmrDataByIndex(int);
 
+// compare values in queue
+void *vTmrCompare(TYPE);
+
 #endif // TMR_H_

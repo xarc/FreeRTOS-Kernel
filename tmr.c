@@ -73,48 +73,61 @@ void *iTmrDataByIndex(int i) {
   return prvDataQueue[i];
 }
 
-#define CMP(type, index, counter, a, b)                                        \
-  ({                                                                           \
-    if ((type *)a[i] != (type *)b[i]) {                                        \
-      counter++;                                                               \
-    }                                                                          \
-  })
-
-#define SWITCH_CMP(type, index, counter, a, b)                                 \
-  {                                                                            \
-    switch (type) {                                                            \
-    case CHAR:                                                                 \
-      CMP(char, index, counter, a, b);                                         \
-      break;                                                                   \
-    case INT:                                                                  \
-      CMP(int, index, counter, , b);                                           \
-      break;                                                                   \
-    case FLOAT:                                                                \
-      CMP(float, index, counter, a, b);                                        \
-      break;                                                                   \
-    case DOUBLE:                                                               \
-      CMP(double, index, counter, a, b);                                       \
-      break;                                                                   \
-    }                                                                          \
-  }
-
 void *vTmrCompare(TYPE t) {
+  if (iTmrPullData())
+    return NULL;
+
   void *data[TMR_QUEUE_LENGTH] = {};
   memcpy(data, prvDataQueue, sizeof(data));
 
   int i;
-  int all = 0;
   for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-    SWITCH_CMP(t, i, all, data, prvDataQueue);
+    data[i] = prvDataQueue[0];
   }
 
-  if (all == TMR_QUEUE_LENGTH) {
-    return *data;
+  switch (t) {
+  case CHAR:
+    if ((char *)data[0] == (char *)data[1] ||
+        (char *)data[0] == (char *)data[2]) {
+      return data[0];
+    }
+
+    if ((char *)data[1] == (char *)data[2]) {
+      return data[1];
+    }
+    break;
+  case INT:
+    if ((int *)data[0] == (int *)data[1] || (int *)data[0] == (int *)data[2]) {
+      return data[0];
+    }
+
+    if ((int *)data[1] == (int *)data[2]) {
+      return data[1];
+    }
+    break;
+  case FLOAT:
+    if ((float *)data[0] == (float *)data[1] ||
+        (float *)data[0] == (float *)data[2]) {
+      return data[0];
+    }
+
+    if ((float *)data[1] == (float *)data[2]) {
+      return data[1];
+    }
+    break;
+  case DOUBLE:
+    if ((double *)data[0] == (double *)data[1] ||
+        (double *)data[0] == (double *)data[2]) {
+      return data[0];
+    }
+
+    if ((double *)data[1] == (double *)data[2]) {
+      return data[1];
+    }
+    break;
+  default:
+    break;
   }
 
-  if (all == 2) {
-    return *data;
-  }
-
-  return 0;
+  return NULL;
 }
