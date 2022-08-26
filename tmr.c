@@ -14,128 +14,139 @@ node_t *prvTaskQueue = NULL;
 void *prvDataQueue[TMR_QUEUE_LENGTH] = {};
 
 /// initialize TMR queue
-void vTmrInit(TASK_FUNCTION_PTR(a), ...) {
-  va_list argp;
-  va_start(argp, a);
-  node_t *q = pvPortMalloc(sizeof(node_t *));
-  enqueue(&q, a);
+void vTmrInit(TASK_FUNCTION_PTR(a), ...)
+{
+	va_list argp;
+	va_start(argp, a);
+	node_t *q = pvPortMalloc(sizeof(node_t *));
+	enqueue(&q, a);
 
-  int i = 0;
-  for (; i < TMR_QUEUE_LENGTH - 1; i++) {
-    enqueue(&q, va_arg(argp, TASK_FUNCTION_PTR()));
-    prvDataQueue[i] = NULL;
-  }
+	int i = 0;
+	for (; i < TMR_QUEUE_LENGTH - 1; i++) {
+		enqueue(&q, va_arg(argp, TASK_FUNCTION_PTR()));
+		prvDataQueue[i] = NULL;
+	}
 
-  va_end(argp);
-  prvTaskQueue = q;
+	va_end(argp);
+	prvTaskQueue = q;
 }
 
 /// Find task queue position
-int prvTmrFindIndex(TASK_FUNCTION_PTR(f)) {
-  int i = 0;
-  node_t *q = prvTaskQueue;
-  for (; i < TMR_QUEUE_LENGTH; i++) {
-    if (q->val == f) {
-      return i;
-    }
-    q = q->next;
-  }
-  return -1;
+int prvTmrFindIndex(TASK_FUNCTION_PTR(f))
+{
+	int i = 0;
+	node_t *q = prvTaskQueue;
+	for (; i < TMR_QUEUE_LENGTH; i++) {
+		if (q->val == f) {
+			return i;
+		}
+		q = q->next;
+	}
+	return -1;
 }
 
 /// Insert task data to queue
-void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data) {
-  int index = prvTmrFindIndex(f);
-  if (index < 0) {
-    return NULL;
-  }
+void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data)
+{
+	int index = prvTmrFindIndex(f);
+	if (index < 0) {
+		return NULL;
+	}
 
-  prvDataQueue[index] = data;
-  return prvDataQueue[index];
+	prvDataQueue[index] = data;
+	return prvDataQueue[index];
 }
 
-void vPrintTasks() { return print_list(prvTaskQueue); }
-
-int iTmrPullData() {
-  int i = 0;
-  for (; i <= TMR_QUEUE_LENGTH - 1; i++) {
-    if (prvDataQueue[i] == NULL) {
-      return 1;
-    }
-  }
-  return 0;
+void vPrintTasks()
+{
+	return print_list(prvTaskQueue);
 }
 
-void *iTmrDataByIndex(int i) {
-  if (i > TMR_QUEUE_LENGTH - 1) {
-    return NULL;
-  }
-  return prvDataQueue[i];
+int iTmrPullData()
+{
+	int i = 0;
+	for (; i <= TMR_QUEUE_LENGTH - 1; i++) {
+		if (prvDataQueue[i] == NULL) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
-void vTmrCleanDataQueue() {
-  int i;
-
-  for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-    prvDataQueue[i] = NULL;
-  }
+void *iTmrDataByIndex(int i)
+{
+	if (i > TMR_QUEUE_LENGTH - 1) {
+		return NULL;
+	}
+	return prvDataQueue[i];
 }
 
-void *vTmrCompare(TYPE t) {
-  if (iTmrPullData())
-    return NULL;
+void vTmrCleanDataQueue()
+{
+	int i;
 
-  void *data[TMR_QUEUE_LENGTH] = {};
-  memcpy(data, prvDataQueue, sizeof(data));
+	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
+		prvDataQueue[i] = NULL;
+	}
+}
 
-  int i;
-  for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-    data[i] = prvDataQueue[i];
-  }
+void *vTmrCompare(TYPE t)
+{
+	if (iTmrPullData())
+		return NULL;
 
-  switch (t) {
-  case CHAR:
-    if ((char *)data[0] == (char *)data[1] ||
-        (char *)data[0] == (char *)data[2]) {
-      return data[0];
-    }
+	void *data[TMR_QUEUE_LENGTH] = {};
+	memcpy(data, prvDataQueue, sizeof(data));
 
-    if ((char *)data[1] == (char *)data[2]) {
-      return data[1];
-    }
-    break;
-  case INT:
-    if ((int *)data[0] == (int *)data[1] || (int *)data[0] == (int *)data[2]) {
-      return data[0];
-    }
+	int i;
+	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
+		data[i] = prvDataQueue[i];
+	}
 
-    if ((int *)data[1] == (int *)data[2]) {
-      return data[1];
-    }
-    break;
-  case FLOAT:
-    if ((float *)data[0] == (float *)data[1] ||
-        (float *)data[0] == (float *)data[2]) {
-      return data[0];
-    }
+	switch (t) {
+	case CHAR:
+		if ((char *)data[0] == (char *)data[1] ||
+		    (char *)data[0] == (char *)data[2]) {
+			return data[0];
+		}
 
-    if ((float *)data[1] == (float *)data[2]) {
-      return data[1];
-    }
-    break;
-  case DOUBLE:
-    if ((double *)data[0] == (double *)data[1] ||
-        (double *)data[0] == (double *)data[2]) {
-      return data[0];
-    }
+		if ((char *)data[1] == (char *)data[2]) {
+			return data[1];
+		}
+		break;
+	case INT:
+		if ((int *)data[0] == (int *)data[1] ||
+		    (int *)data[0] == (int *)data[2]) {
+			return data[0];
+		}
 
-    if ((double *)data[1] == (double *)data[2]) {
-      return data[1];
-    }
-    break;
-  default:
-    break;
-  }
+		if ((int *)data[1] == (int *)data[2]) {
+			return data[1];
+		}
+		break;
+	case FLOAT:
+		if ((float *)data[0] == (float *)data[1] ||
+		    (float *)data[0] == (float *)data[2]) {
+			return data[0];
+		}
 
-  return NULL;
+		if ((float *)data[1] == (float *)data[2]) {
+			return data[1];
+		}
+		break;
+	case DOUBLE:
+		if ((double *)data[0] == (double *)data[1] ||
+		    (double *)data[0] == (double *)data[2]) {
+			return data[0];
+		}
+
+		if ((double *)data[1] == (double *)data[2]) {
+			return data[1];
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NULL;
 }
