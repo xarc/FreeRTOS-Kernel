@@ -34,4 +34,15 @@ void *vTmrCompare(TYPE);
 // Clean data queue;
 void vTmrCleanDataQueue();
 
+void exception_handler(void *);
+
+#ifdef FT_EXCEPTION_HANDLER
+void __attribute__((weak))
+freertos_risc_v_application_exception_handler(void *arg)
+{
+	exception_handler(arg);
+	__asm__ __volatile__("mret");
+}
+#endif
+
 #endif // TMR_H_
