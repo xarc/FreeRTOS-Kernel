@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 
 #include "FreeRTOSConfig.h"
+#include "portable.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +15,7 @@
 #include "tmr_queue.h"
 
 node_t *prvTaskQueue = NULL;
-void *prvDataQueue[TMR_QUEUE_LENGTH] = {};
+struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH] = {};
 
 /// initialize TMR queue
 void vTmrInit(TASK_FUNCTION_PTR(a), ...)
@@ -49,15 +50,21 @@ int prvTmrFindIndex(TASK_FUNCTION_PTR(f))
 }
 
 /// Insert task data to queue
-void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data)
+void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 {
-	int index = prvTmrFindIndex(f);
+	struct TmrTask *t = pvPortMalloc(sizeof(struct TmrTask *));
+	t->task = task;
+	t->addr = addr;
+	t->size = size;
+
+	printf("addr -> %p\n", t->addr);
+	int index = prvTmrFindIndex(t->task);
 	if (index < 0) {
 		return NULL;
 	}
 
-	prvDataQueue[index] = data;
-	return prvDataQueue[index];
+	prvDataQueue[index] = t;
+	return prvDataQueue[index]->addr;
 }
 
 void vPrintTasks()
@@ -74,14 +81,6 @@ int iTmrPullData()
 		}
 	}
 	return 0;
-}
-
-void *iTmrDataByIndex(int i)
-{
-	if (i > TMR_QUEUE_LENGTH - 1) {
-		return NULL;
-	}
-	return prvDataQueue[i];
 }
 
 void vTmrCleanDataQueue()
@@ -165,38 +164,39 @@ void exception_handler(void *arg)
 }
 #endif
 
-struct result {
-	void *addr;
-	int size;
-};
-
-struct result *prvDataResultsQueue[TMR_QUEUE_LENGTH] = {};
-
 void vTmrCompareV2()
 {
-	struct result *data[TMR_QUEUE_LENGTH] = {};
+	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
 	memcpy(data, prvDataQueue, sizeof(data));
+
+	printf("meme coydata[i]\n");
 
 	int i;
 	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
 		data[i] = prvDataQueue[i];
 	}
 
+	printf("after data[i]\n");
+
 	uint8_t *a = (uint8_t *)data[0]->addr;
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
 	// TODO: change in main.c to use struct result
+	//
+	printf("Before loop\n");
 
 	// we go through byte by byte
 	for (i = 0; i < data[0]->size; i++) {
 		// valor mais comum
 		uint8_t moda = (*a & *b) | (*a & *c) | (*b & *c);
-		uint8_t err_a = (*a ^ *b) | (*a ^ *c);
-		uint8_t err_b = (*b ^ *a) | (*b ^ *c);
-		uint8_t err_c = (*c ^ *a) | (*c ^ *b);
+		uint8_t err_a = (*a ^ *b) && (*a ^ *c);
+		uint8_t err_b = (*b ^ *a) && (*b ^ *c);
+		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
+
+		printf("%x %x %x %x\n", moda, err_a, err_b, err_c);
 
 		if (err_a || err_b || err_c) {
 			if (err_a && err_b && err_c) {
@@ -216,6 +216,8 @@ void vTmrCompareV2()
 		b++;
 		c++;
 	}
+
+	printf("Done!\n");
 
 	//// valor mais comum
 	//uint8_t moda = (*a & *b) | (*a & *c) | (*b & *c);

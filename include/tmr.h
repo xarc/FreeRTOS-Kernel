@@ -14,13 +14,19 @@ typedef enum { CHAR, INT, FLOAT, DOUBLE } TYPE;
 /// Function pointer to FreeRTOS
 #define TASK_FUNCTION_PTR(x) void (*x)(void *)
 
+struct TmrTask {
+	void *addr;
+	int size;
+	TASK_FUNCTION_PTR(task);
+};
+
 /// Initialize a set of tasks as a TMR-based task.
 void vTmrInit(TASK_FUNCTION_PTR(f), ...);
 // Print current setup tasks to stdout.
 void vPrintTasks();
 
 /// TMR insert task value to storage
-void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *data);
+void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *, int);
 
 // check if data is full
 int iTmrPullData();
@@ -35,6 +41,8 @@ void *vTmrCompare(TYPE);
 void vTmrCleanDataQueue();
 
 void exception_handler(void *);
+
+void vTmrCompareV2();
 
 #ifdef FT_EXCEPTION_HANDLER
 void __attribute__((weak))
