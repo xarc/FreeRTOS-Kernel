@@ -159,9 +159,6 @@ size_t xTaskReturnAddress = ( size_t ) portTASK_RETURN_ADDRESS;
 
         /* Prepare the time to use after the next tick interrupt. */
         ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;
-//        __asm volatile( "csrs mie, %0" :: "r"(0x880) );
-        __asm volatile( "csrsi mstatus,8");
-        __asm volatile( "csrs mie, %0" :: "r"(0x880) );
     }
 
 //#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
@@ -191,15 +188,12 @@ extern void xPortStartFirstTask( void );
      * configure whichever clock is to be used to generate the tick interrupt. */
     vPortSetupTimerInterrupt();
 
-    __asm volatile( "csrsi mstatus, 8");
-    __asm volatile( "csrs mie, %0" :: "r"(0x880) );
-
 //    #if( ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) )
 //    {
         /* Enable mtime and external interrupts.  1<<7 for timer interrupt,
          * 1<<11 for external interrupt.  _RB_ What happens here when mtime is
          * not present as with pulpino? */
-//        __asm volatile( "csrs mie, %0" :: "r"(0x880) );
+       __asm volatile( "csrs mie, %0" :: "r"(0x880) );
 //    }
 //    #endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
 
