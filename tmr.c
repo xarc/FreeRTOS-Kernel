@@ -171,24 +171,16 @@ void vTmrCompareV2()
 	// TODO: Check if last loop is necessary
 	memcpy(data, prvDataQueue, sizeof(data));
 
-	printf("meme coydata[i]\n");
-
 	int i;
 	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
 		data[i] = prvDataQueue[i];
 	}
 
-	printf("after data[i]\n");
-
 	uint8_t *a = (uint8_t *)data[0]->addr;
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
-	// TODO: change in main.c to use struct result
-	//
-	printf("Before loop\n");
-
-	// we go through byte by byte
+	// we go through bit-by-bit
 	for (i = 0; i < data[0]->size; i++) {
 		// valor mais comum
 		uint8_t moda = (*a & *b) | (*a & *c) | (*b & *c);
@@ -196,14 +188,14 @@ void vTmrCompareV2()
 		uint8_t err_b = (*b ^ *a) && (*b ^ *c);
 		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
 
-		printf("%x %x %x %x\n", moda, err_a, err_b, err_c);
+		printf("-> %x %x %x %x\n", moda, err_a, err_b, err_c);
 
 		if (err_a || err_b || err_c) {
 			if (err_a && err_b && err_c) {
-				printf("Unfixable error. Aborting.\n");
+				printf("-> Unfixable error. Aborting.\n");
 				__asm__ __volatile__("unimp"); // make it burn
 			} else {
-				printf("error in one of values. Trying to fix it..\n");
+				printf("-> Error in one of the values. Fixing.\n");
 			}
 		}
 
@@ -216,16 +208,4 @@ void vTmrCompareV2()
 		b++;
 		c++;
 	}
-
-	printf("Done!\n");
-
-	//// valor mais comum
-	//uint8_t moda = (*a & *b) | (*a & *c) | (*b & *c);
-	//uint8_t err_a = (*a ^ *b) | (*a ^ *c);
-	//uint8_t err_b = (*b ^ *a) | (*b ^ *c);
-	//uint8_t err_c = (*c ^ *a) | (*c ^ *b);
-
-	//if (err_a == 0 && err_b == 0 && err_c == 0) {
-	//	return (void *)data[0];
-	//}
 }
