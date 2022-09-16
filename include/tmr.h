@@ -44,6 +44,8 @@ void exception_handler(void *);
 
 void vTmrCompareV2();
 
+static void vTmrCompareV2Asm();
+
 #ifdef FT_EXCEPTION_HANDLER
 void __attribute__((weak))
 freertos_risc_v_application_exception_handler(void *arg)

@@ -17,9 +17,22 @@
 node_t *prvTaskQueue = NULL;
 struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH] = {};
 
+struct TmrCtx {
+	uint8_t done;
+	uint8_t ok;
+	uint8_t err;
+};
+
+struct TmrCtx *ctx = NULL;
+
 /// initialize TMR queue
 void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 {
+	ctx = pvPortMalloc(sizeof(struct TmrCtx *));
+	ctx->ok = 0;
+	ctx->done = 0;
+	ctx->err = 0;
+
 	va_list argp;
 	va_start(argp, a);
 	node_t *q = pvPortMalloc(sizeof(node_t *));
@@ -64,6 +77,11 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	}
 
 	prvDataQueue[index] = t;
+
+	while (ctx->done == 0) {
+		portYIELD();
+	}
+
 	return prvDataQueue[index]->addr;
 }
 
@@ -180,6 +198,9 @@ void vTmrCompareV2()
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
+	ctx->ok = 1;
+	ctx->err = 0;
+
 	// we go through bit-by-bit
 	for (i = 0; i < data[0]->size; i++) {
 		// valor mais comum
@@ -191,7 +212,9 @@ void vTmrCompareV2()
 		printf("-> %x %x %x %x\n", moda, err_a, err_b, err_c);
 
 		if (err_a || err_b || err_c) {
+			ctx->err = 1;
 			if (err_a && err_b && err_c) {
+				ctx->ok = 0;
 				printf("-> Unfixable error. Aborting.\n");
 				__asm__ __volatile__("unimp"); // make it burn
 			} else {
@@ -208,4 +231,10 @@ void vTmrCompareV2()
 		b++;
 		c++;
 	}
+	ctx->done = 1;
+}
+
+static void vTmrCompareV2Asm()
+{
+	return vTmrCompareV2();
 }
