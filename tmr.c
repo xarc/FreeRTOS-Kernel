@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "semphr.h"
+#include <limits.h>
 
 #include "tmr.h"
 #include "tmr_queue.h"
@@ -70,10 +71,7 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	t->task = task;
 	t->addr = addr;
 	t->size = size;
-	t->handle = xSemaphoreCreateMutex();
-	if (xSemaphoreTake(t->handle, (TickType_t)TmrTicksToWait) == pdTRUE) {
-		printf("-> First xSemaphoreTake ok\n");
-	}
+	t->handler = xTaskGetCurrentTaskHandle();
 
 	int index = prvTmrFindIndex(t->task);
 	if (index < 0) {
@@ -82,8 +80,15 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	prvDataQueue[index] = t;
 
-	if (xSemaphoreTake(t->handle, (TickType_t)TmrTicksToWait) == pdTRUE) {
-		printf("-> Second xSemaphoreTake ok\n");
+	for (;;) {
+		printf("-> Notifying on task %p\n", t->task);
+		xTaskNotifyWait(0x00, ULONG_MAX, &t->notify, portMAX_DELAY);
+		printf("-> Notified %p\n", t->task);
+		if ((t->notify & 0x1) != 0) {
+			printf("-> Received notification on task %p\n",
+			       t->task);
+			break;
+		}
 	}
 
 	return prvDataQueue[index]->addr;
@@ -239,9 +244,9 @@ void vTmrCompareV2()
 	ctx->done = 1;
 
 	if (ctx->ok) {
-		for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-			printf("-> Releasing %p\n", data[i]->task);
-			xSemaphoreGive(data[i]->handle);
+		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
+			printf("-> Notifying task '%p'\n", data[i]->task);
+			xTaskNotify(data[i]->handler, 0x1, eIncrement);
 		}
 	}
 

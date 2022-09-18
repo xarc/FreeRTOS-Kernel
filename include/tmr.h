@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "semphr.h"
+#include <sys/types.h>
 
 #define TMR_SECTION __attribute__((section(".tmr")))
 
@@ -25,7 +26,8 @@ struct TmrTask {
 	void *addr;
 	int size;
 	TASK_FUNCTION_PTR(task);
-	SemaphoreHandle_t handle;
+	uint32_t notify;
+	TaskHandle_t handler;
 };
 
 /// Initialize a set of tasks as a TMR-based task.
