@@ -2,6 +2,7 @@
 
 #include "FreeRTOSConfig.h"
 #include "portable.h"
+#include "portmacro.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -187,6 +188,7 @@ void exception_handler(void *arg)
 
 void vTmrCompareV2()
 {
+	portENTER_CRITICAL();
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
@@ -242,6 +244,8 @@ void vTmrCompareV2()
 			xSemaphoreGive(data[i]->handle);
 		}
 	}
+
+	portEXIT_CRITICAL();
 }
 
 static void vTmrCompareV2Asm()
