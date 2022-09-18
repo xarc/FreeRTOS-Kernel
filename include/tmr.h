@@ -2,6 +2,7 @@
 #define TMR_H_
 
 #include <stddef.h>
+#include "semphr.h"
 
 #define TMR_SECTION __attribute__((section(".tmr")))
 
@@ -14,10 +15,17 @@ typedef enum { CHAR, INT, FLOAT, DOUBLE } TYPE;
 /// Function pointer to FreeRTOS
 #define TASK_FUNCTION_PTR(x) void (*x)(void *)
 
+#ifdef config_TmrTaskTicksToWaitMs
+#define TmrTicksToWait pdMS_TO_TICKS(config_TmrTaskTicksToWaitMs)
+#else
+#define TmrTicksToWait pdMS_TO_TICKS(1000)
+#endif
+
 struct TmrTask {
 	void *addr;
 	int size;
 	TASK_FUNCTION_PTR(task);
+	SemaphoreHandle_t handle;
 };
 
 /// Initialize a set of tasks as a TMR-based task.

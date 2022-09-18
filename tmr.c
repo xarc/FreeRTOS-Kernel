@@ -9,8 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "semphr.h"
 
-#include "include/tmr.h"
 #include "tmr.h"
 #include "tmr_queue.h"
 
@@ -69,8 +69,11 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	t->task = task;
 	t->addr = addr;
 	t->size = size;
+	t->handle = xSemaphoreCreateMutex();
+	if (xSemaphoreTake(t->handle, (TickType_t)TmrTicksToWait) == pdTRUE) {
+		printf("-> First xSemaphoreTake ok\n");
+	}
 
-	printf("addr -> %p\n", t->addr);
 	int index = prvTmrFindIndex(t->task);
 	if (index < 0) {
 		return NULL;
@@ -78,8 +81,8 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	prvDataQueue[index] = t;
 
-	while (ctx->done == 0) {
-		portYIELD();
+	if (xSemaphoreTake(t->handle, (TickType_t)TmrTicksToWait) == pdTRUE) {
+		printf("-> Second xSemaphoreTake ok\n");
 	}
 
 	return prvDataQueue[index]->addr;
@@ -203,13 +206,13 @@ void vTmrCompareV2()
 
 	// we go through bit-by-bit
 	for (i = 0; i < data[0]->size; i++) {
-		// valor mais comum
-		uint8_t moda = (*a & *b) | (*a & *c) | (*b & *c);
+		// most common word
+		uint8_t mode = (*a & *b) | (*a & *c) | (*b & *c);
 		uint8_t err_a = (*a ^ *b) && (*a ^ *c);
 		uint8_t err_b = (*b ^ *a) && (*b ^ *c);
 		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
 
-		printf("-> %x %x %x %x\n", moda, err_a, err_b, err_c);
+		printf("-> %x %x %x %x\n", mode, err_a, err_b, err_c);
 
 		if (err_a || err_b || err_c) {
 			ctx->err = 1;
@@ -223,15 +226,22 @@ void vTmrCompareV2()
 		}
 
 		// correct it in case
-		*a = moda;
-		*b = moda;
-		*c = moda;
+		*a = mode;
+		*b = mode;
+		*c = mode;
 
 		a++;
 		b++;
 		c++;
 	}
 	ctx->done = 1;
+
+	if (ctx->ok) {
+		for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
+			printf("-> Releasing %p\n", data[i]->task);
+			xSemaphoreGive(data[i]->handle);
+		}
+	}
 }
 
 static void vTmrCompareV2Asm()
