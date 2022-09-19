@@ -21,19 +21,29 @@ struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH] = {};
 
 struct TmrCtx {
 	uint8_t done;
+	uint8_t ready;
 	uint8_t ok;
 	uint8_t err;
+	QueueHandle_t data;
 };
 
 struct TmrCtx *ctx = NULL;
+
+struct prvTmrQueueData {
+	void *data;
+	int size;
+};
 
 /// initialize TMR queue
 void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 {
 	ctx = pvPortMalloc(sizeof(struct TmrCtx *));
+	ctx->data = xQueueCreate(TMR_QUEUE_LENGTH, sizeof(int));
+
 	ctx->ok = 0;
 	ctx->done = 0;
 	ctx->err = 0;
+	ctx->ready = 0;
 
 	va_list argp;
 	va_start(argp, a);
@@ -71,7 +81,6 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	t->task = task;
 	t->addr = addr;
 	t->size = size;
-	t->handler = xTaskGetCurrentTaskHandle();
 
 	int index = prvTmrFindIndex(t->task);
 	if (index < 0) {
@@ -79,19 +88,20 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	}
 
 	prvDataQueue[index] = t;
+	ctx->ready++;
 
-	for (;;) {
-		printf("-> Notifying on task %p\n", t->task);
-		xTaskNotifyWait(0x00, ULONG_MAX, &t->notify, portMAX_DELAY);
-		printf("-> Notified %p\n", t->task);
-		if ((t->notify & 0x1) != 0) {
-			printf("-> Received notification on task %p\n",
-			       t->task);
-			break;
-		}
+	int value;
+	BaseType_t xTaskWokenByReceive = pdFALSE;
+
+	while (xQueueReceiveFromISR(ctx->data, &value, &xTaskWokenByReceive)) {
+		return (void *)value;
 	}
 
-	return prvDataQueue[index]->addr;
+	if (xTaskWokenByReceive != pdFALSE) {
+		taskYIELD();
+	}
+
+	return NULL;
 }
 
 void vPrintTasks()
@@ -102,12 +112,19 @@ void vPrintTasks()
 int iTmrPullData()
 {
 	int i = 0;
-	for (; i <= TMR_QUEUE_LENGTH - 1; i++) {
+	for (; i < TMR_QUEUE_LENGTH; i++) {
 		if (prvDataQueue[i] == NULL) {
-			return 1;
+			return 0;
 		}
 	}
-	return 0;
+	return 1;
+}
+
+void vTmrWaitForData()
+{
+	while (uxQueueMessagesWaiting(ctx->data) != 0) {
+		;
+	}
 }
 
 void vTmrCleanDataQueue()
@@ -183,8 +200,6 @@ void *vTmrCompare(TYPE t)
 #ifdef FT_EXCEPTION_HANDLER
 void exception_handler(void *arg)
 {
-	printf("%p\n", arg);
-
 #ifdef FT_EXCEPTION_HANDLER
 	ft_exception_handler(arg);
 #endif
@@ -193,16 +208,10 @@ void exception_handler(void *arg)
 
 void vTmrCompareV2()
 {
-	portENTER_CRITICAL();
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
 	memcpy(data, prvDataQueue, sizeof(data));
-
-	int i;
-	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-		data[i] = prvDataQueue[i];
-	}
 
 	uint8_t *a = (uint8_t *)data[0]->addr;
 	uint8_t *b = (uint8_t *)data[1]->addr;
@@ -211,24 +220,21 @@ void vTmrCompareV2()
 	ctx->ok = 1;
 	ctx->err = 0;
 
+	int size = data[0]->size;
+	int i;
 	// we go through bit-by-bit
-	for (i = 0; i < data[0]->size; i++) {
+	for (i = 0; i < size; i++) {
 		// most common word
 		uint8_t mode = (*a & *b) | (*a & *c) | (*b & *c);
 		uint8_t err_a = (*a ^ *b) && (*a ^ *c);
 		uint8_t err_b = (*b ^ *a) && (*b ^ *c);
 		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
 
-		printf("-> %x %x %x %x\n", mode, err_a, err_b, err_c);
-
 		if (err_a || err_b || err_c) {
 			ctx->err = 1;
 			if (err_a && err_b && err_c) {
 				ctx->ok = 0;
-				printf("-> Unfixable error. Aborting.\n");
 				__asm__ __volatile__("unimp"); // make it burn
-			} else {
-				printf("-> Error in one of the values. Fixing.\n");
 			}
 		}
 
@@ -245,12 +251,12 @@ void vTmrCompareV2()
 
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
-			printf("-> Notifying task '%p'\n", data[i]->task);
-			xTaskNotify(data[i]->handler, 0x1, eIncrement);
+			xQueueSend(ctx->data, (void *)&a, portMAX_DELAY);
+			ctx->ready--;
 		}
 	}
 
-	portEXIT_CRITICAL();
+	vTmrCleanDataQueue();
 }
 
 static void vTmrCompareV2Asm()

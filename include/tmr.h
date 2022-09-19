@@ -47,6 +47,9 @@ void *iTmrDataByIndex(int);
 // compare values in queue
 void *vTmrCompare(TYPE);
 
+// wait untill all data is completed
+void vTmrWaitForData();
+
 // Clean data queue;
 void vTmrCleanDataQueue();
 
