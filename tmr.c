@@ -16,7 +16,6 @@
 #include "tmr.h"
 #include "tmr_queue.h"
 
-node_t *prvTaskQueue = NULL;
 struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH] = {};
 
 struct TmrCtx {
@@ -25,14 +24,10 @@ struct TmrCtx {
 	uint8_t ok;
 	uint8_t err;
 	QueueHandle_t data;
+	node_t *prvTaskQueue;
 };
 
 struct TmrCtx *ctx = NULL;
-
-struct prvTmrQueueData {
-	void *data;
-	int size;
-};
 
 /// initialize TMR queue
 void vTmrInit(TASK_FUNCTION_PTR(a), ...)
@@ -57,14 +52,14 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 	}
 
 	va_end(argp);
-	prvTaskQueue = q;
+	ctx->prvTaskQueue = q;
 }
 
 /// Find task queue position
 int prvTmrFindIndex(TASK_FUNCTION_PTR(f))
 {
 	int i = 0;
-	node_t *q = prvTaskQueue;
+	node_t *q = ctx->prvTaskQueue;
 	for (; i < TMR_QUEUE_LENGTH; i++) {
 		if (q->val == f) {
 			return i;
@@ -106,7 +101,7 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 void vPrintTasks()
 {
-	return print_list(prvTaskQueue);
+	return print_list(ctx->prvTaskQueue);
 }
 
 int iTmrPullData()
