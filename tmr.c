@@ -16,8 +16,6 @@
 #include "tmr.h"
 #include "tmr_queue.h"
 
-struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH] = {};
-
 struct TmrCtx {
 	uint8_t done;
 	uint8_t ready;
@@ -25,6 +23,7 @@ struct TmrCtx {
 	uint8_t err;
 	QueueHandle_t data;
 	node_t *prvTaskQueue;
+	struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH];
 };
 
 struct TmrCtx *ctx = NULL;
@@ -48,7 +47,7 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 	int i = 0;
 	for (; i < TMR_QUEUE_LENGTH - 1; i++) {
 		enqueue(&q, va_arg(argp, TASK_FUNCTION_PTR()));
-		prvDataQueue[i] = NULL;
+		ctx->prvDataQueue[i] = NULL;
 	}
 
 	va_end(argp);
@@ -82,7 +81,7 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 		return NULL;
 	}
 
-	prvDataQueue[index] = t;
+	ctx->prvDataQueue[index] = t;
 	ctx->ready++;
 
 	int value;
@@ -108,7 +107,7 @@ int iTmrPullData()
 {
 	int i = 0;
 	for (; i < TMR_QUEUE_LENGTH; i++) {
-		if (prvDataQueue[i] == NULL) {
+		if (ctx->prvDataQueue[i] == NULL) {
 			return 0;
 		}
 	}
@@ -127,7 +126,7 @@ void vTmrCleanDataQueue()
 	int i;
 
 	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-		prvDataQueue[i] = NULL;
+		ctx->prvDataQueue[i] = NULL;
 	}
 }
 
@@ -137,11 +136,11 @@ void *vTmrCompare(TYPE t)
 		return NULL;
 
 	void *data[TMR_QUEUE_LENGTH] = {};
-	memcpy(data, prvDataQueue, sizeof(data));
+	memcpy(data, ctx->prvDataQueue, sizeof(data));
 
 	int i;
 	for (i = 0; i < TMR_QUEUE_LENGTH - 1; i++) {
-		data[i] = prvDataQueue[i];
+		data[i] = ctx->prvDataQueue[i];
 	}
 
 	switch (t) {
@@ -206,7 +205,7 @@ void vTmrCompareV2()
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
-	memcpy(data, prvDataQueue, sizeof(data));
+	memcpy(data, ctx->prvDataQueue, sizeof(data));
 
 	uint8_t *a = (uint8_t *)data[0]->addr;
 	uint8_t *b = (uint8_t *)data[1]->addr;
