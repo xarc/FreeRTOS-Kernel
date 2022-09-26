@@ -85,14 +85,8 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	ctx->ready++;
 
 	int value;
-	BaseType_t xTaskWokenByReceive = pdFALSE;
-
-	while (xQueueReceiveFromISR(ctx->data, &value, &xTaskWokenByReceive)) {
+	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
 		return (void *)value;
-	}
-
-	if (xTaskWokenByReceive != pdFALSE) {
-		taskYIELD();
 	}
 
 	return NULL;
