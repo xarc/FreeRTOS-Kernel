@@ -68,10 +68,27 @@ int prvTmrFindIndex(TASK_FUNCTION_PTR(f))
 	return -1;
 }
 
+/// Find task queue position
+struct TmrTask *prvFindTmrTask(TASK_FUNCTION_PTR(f))
+{
+	int i;
+	for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
+		if (ctx->prvDataQueue[i] != NULL &&
+		    ctx->prvDataQueue[i]->task == f) {
+			return ctx->prvDataQueue[i];
+		}
+	}
+	return NULL;
+}
+
 /// Insert task data to queue
 int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 {
-	struct TmrTask *t = pvPortMalloc(sizeof(struct TmrTask *));
+	struct TmrTask *t = prvFindTmrTask(task);
+
+	if (t == NULL)
+		t = pvPortMalloc(sizeof(struct TmrTask *));
+
 	t->task = task;
 	t->addr = addr;
 	t->size = size;
@@ -86,6 +103,10 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	int value;
 	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
+		taskENTER_CRITICAL();
+		vPortFree(ctx->prvDataQueue[index]);
+		ctx->prvDataQueue[index] = NULL;
+		taskEXIT_CRITICAL();
 		return TMR_OK;
 	}
 
@@ -243,8 +264,6 @@ void vTmrCompareV2()
 			ctx->ready--;
 		}
 	}
-
-	vTmrCleanDataQueue();
 }
 
 static void vTmrCompareV2Asm()
