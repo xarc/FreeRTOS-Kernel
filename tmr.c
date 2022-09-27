@@ -69,7 +69,7 @@ int prvTmrFindIndex(TASK_FUNCTION_PTR(f))
 }
 
 /// Insert task data to queue
-void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
+int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 {
 	struct TmrTask *t = pvPortMalloc(sizeof(struct TmrTask *));
 	t->task = task;
@@ -78,7 +78,7 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	int index = prvTmrFindIndex(t->task);
 	if (index < 0) {
-		return NULL;
+		return TMR_ERR;
 	}
 
 	ctx->prvDataQueue[index] = t;
@@ -86,10 +86,10 @@ void *iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	int value;
 	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
-		return (void *)value;
+		return TMR_OK;
 	}
 
-	return NULL;
+	return TMR_ERR;
 }
 
 void vPrintTasks()

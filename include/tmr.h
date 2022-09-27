@@ -11,6 +11,9 @@
 #define TMR_QUEUE_LENGTH 3
 #endif
 
+#define TMR_OK 1
+#define TMR_ERR 0
+
 typedef enum { CHAR, INT, FLOAT, DOUBLE } TYPE;
 
 /// Function pointer to FreeRTOS
@@ -36,7 +39,7 @@ void vTmrInit(TASK_FUNCTION_PTR(f), ...);
 void vPrintTasks();
 
 /// TMR insert task value to storage
-void *iTmrInsertValue(TASK_FUNCTION_PTR(f), void *, int);
+int iTmrInsertValue(TASK_FUNCTION_PTR(f), void *, int);
 
 // check if data is full
 int iTmrPullData();
