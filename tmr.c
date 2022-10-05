@@ -49,7 +49,7 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 		enqueue(&q, va_arg(argp, TASK_FUNCTION_PTR()));
 		ctx->prvDataQueue[i] = NULL;
 	}
-	ctx->prvDataQueue[i] = NULL;
+	ctx->prvDataQueue[i+1] = NULL;
 
 	va_end(argp);
 	ctx->prvTaskQueue = q;
@@ -218,6 +218,7 @@ void exception_handler(void *arg)
 
 void vTmrCompareV2()
 {
+	portENTER_CRITICAL();
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
@@ -265,6 +266,7 @@ void vTmrCompareV2()
 			ctx->ready--;
 		}
 	}
+	portEXIT_CRITICAL();
 }
 
 static void vTmrCompareV2Asm()
