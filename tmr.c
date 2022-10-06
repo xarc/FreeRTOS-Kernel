@@ -49,7 +49,7 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 		enqueue(&q, va_arg(argp, TASK_FUNCTION_PTR()));
 		ctx->prvDataQueue[i] = NULL;
 	}
-	ctx->prvDataQueue[i+1] = NULL;
+	ctx->prvDataQueue[TMR_QUEUE_LENGTH - 1] = NULL;
 
 	va_end(argp);
 	ctx->prvTaskQueue = q;
