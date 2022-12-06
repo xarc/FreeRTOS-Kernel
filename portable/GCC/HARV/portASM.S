@@ -280,7 +280,235 @@ freertos_risc_v_application_exception_handler:
     csrr t0, mcause     /* For viewing in the debugger only. */
     csrr t1, mepc       /* For viewing in the debugger only */
     csrr t2, mstatus    /* For viewing in the debugger only */
-    j .
+
+    /* Report all HARV event report */
+# CSR addresses
+.equ CSR_RSTCAUSE_ADDR,    0x7C0
+.equ CSR_HARDEN_CONF_ADDR, 0x7C1
+# peripherals addresses
+.equ UART_INTERFACE_ADDR, 0x80000000 # UART base address in AMBA bus
+.equ UART_BAUD_REG_ADDR,  0x80000004
+.equ UART_PARITY_ADDR,    0x80000008
+.equ UART_RTSCTS_ADDR,    0x8000000C
+.equ UART_STATUS_ADDR,    0x80000010
+.equ WDT_ADDR,            0x80000100 # WDT base address in AMBA bus
+.equ GPIO_BASE_ADDR,      0x80000204 # GPIO pins address in AMBA bus
+.equ MEM_EH_ADDR,         0x70800000 # memory event handler address in AMBA bus
+# event handler addresses
+.equ EH_EVENT_ID,          0x01000000
+.equ EH_PC,                0x01000004
+.equ EH_INSTR,             0x01000008
+.equ EH_ENC_DATA,          0x0100000C
+.equ EH_ENC_DATA_ECC,      0x01000010
+.equ EH_ALU_RESULT,        0x01000014
+.equ EH_MCYCLE,            0x01000018
+.equ EH_MCYCLEH,           0x0100001C
+.equ EH_JALLOG_PTR,        0x01000020
+.equ EH_JALLOG_SIZE,       0x01000024
+.equ EH_JALLOG_BASE,       0x01000800
+.equ MEM_EH_EVENT_ID,      0x70800000
+.equ MEM_EH_MEM_ADDR,      0x70800004
+.equ MEM_EH_MEM_ECC_ADDR,  0x70800014
+.equ MEM_EH_ENC_DATA,      0x70800008
+.equ MEM_EH_ENC_DATA_ECC,  0x7080000C
+.equ MEM_EH_MEM_PREV_ADDR, 0x70800018
+.equ MEM_EH_ENABLE,        0x70800010
+
+harv_exception_report_trap_info:
+    /* print TRAP */
+    li      a0, 0x0A
+    call    asm_putchar
+    li      a0, 0x54
+    call    asm_putchar
+    li      a0, 0x52
+    call    asm_putchar
+    li      a0, 0x41
+    call    asm_putchar
+    li      a0, 0x50
+    call    asm_putchar
+    li      a0, 0x0A
+    call    asm_putchar
+
+    csrr    a0, CSR_HARDEN_CONF_ADDR
+    li      a1, 8
+    call    asm_write_hex
+
+    csrr    a0, mepc
+    li      a1, 8
+    call    asm_write_hex
+
+    csrr    a0, mcause
+    li      a1, 8
+    call    asm_write_hex
+
+    # PRINT EVENT INFORMATION
+    li      a0, EH_EVENT_ID
+    lw      a0, 0(a0)
+    li      a1, 4
+    call    asm_write_hex
+    
+    li      a0, EH_PC
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_INSTR
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_ENC_DATA
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_ENC_DATA_ECC
+    lw      a0, 0(a0)
+    li      a1, 2
+    call    asm_write_hex
+
+    li      a0, EH_ALU_RESULT
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_MCYCLE
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_MCYCLEH
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, EH_JALLOG_PTR
+    lw      a0, 0(a0)
+    li      a1, 3
+    call    asm_write_hex
+
+    li      a0, EH_JALLOG_SIZE
+    lw      a0, 0(a0)
+    mv      s1, a0
+    li      a1, 3
+    call    asm_write_hex
+
+    li      s0, EH_JALLOG_BASE   # load JALLOG base address to s0
+    sll     s1, s1, 2            # multiply jallog size by 4
+    add     s1, s0, s1           # get high address
+loop_jallog:
+    lw      a0, 0(s0)            # read JALLOG data
+    li      a1, 8                # set number of digits to print
+    call    asm_write_hex        # call hex write print
+    addi    s0, s0, 4            # increment JALLOG pointer to data
+    bltu    s0, s1, loop_jallog  # if it's not last address, loop
+
+    ## MEM event handler
+
+    li      a0, MEM_EH_EVENT_ID
+    lw      a0, 0(a0)
+    li      a1, 1
+    call    asm_write_hex
+
+    li      a0, MEM_EH_MEM_ADDR
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, MEM_EH_MEM_ECC_ADDR
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, MEM_EH_ENC_DATA
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, MEM_EH_ENC_DATA_ECC
+    lw      a0, 0(a0)
+    li      a1, 2
+    call    asm_write_hex
+
+    li      a0, MEM_EH_MEM_PREV_ADDR
+    lw      a0, 0(a0)
+    li      a1, 8
+    call    asm_write_hex
+
+    li      a0, MEM_EH_ENABLE
+    lw      a0, 0(a0)
+    li      a1, 1
+    call    asm_write_hex
+
+    /* error correction of memory events */
+    li      a0, MEM_EH_EVENT_ID                            # load event id address
+    lw      a0, 0(a0)                                      # read memory event id
+    beq     a0, x0, harv_report_trap_info_skip_correction  # if there are no memory events, skips correction
+    li      s0, MEM_EH_MEM_ADDR                            # load address of error address
+    lw      s0, 0(s0)                                      # read error address
+    la      t0, RAM_BASE_ADDR                              # load memory base address
+    add     s0, s0, t0                                     # increment with base RAM address
+    lw      s1, 0(s0)                                      # read data with error
+    sw      s1, 0(s0)                                      # write data back to memory to remove the ecc error
+harv_report_trap_info_skip_correction:
+
+    csrr a0, mcause                                        # read mcause csr
+    li   t0, 0x18                                          # load immediate for event handler faults
+    bne  a0, t0, harv_handle_failure_exception             # in case it is not an event from event handler, go to failure exception procedure
+    /* when it is event handler fault, return to same instruction */
+    lw      ra, 0(sp)                                      # restore return address
+    addi    sp, sp, 4                                      # increment stack pointer
+    ret                                                    # return to the application execution
+
+/* if exception cannot be corrected, reset the processor */
+harv_handle_failure_exception:
+    call wdt_reset
+    j    harv_handle_failure_exception
+
+##############################################
+asm_putchar:
+wait_uart0:
+    li      t0, UART_STATUS_ADDR     # load UART status address
+    lw      t1, 0(t0)                # load status into t1
+    srl     t1, t1, 1                # shift t1 right by one bit
+    and     t1, t1, 1                # filter uart ready status code
+    li      t2, 1                    # load comparison value
+    beq     t1, t2, wait_uart0       # branch if status is not ready
+write_uart_byte:
+    li      t0, UART_INTERFACE_ADDR
+    sb      a0, 0(t0)
+wait_uart1:
+    li      t0, UART_STATUS_ADDR     # load UART status address
+    lw      t1, 0(t0)                # load status into t1
+    srl     t1, t1, 1                # shift t1 right by one bit
+    and     t1, t1, 1                # filter uart ready status code
+    li      t2, 1                    # load comparison value
+    beq     t1, t2, wait_uart1       # branch if status is not ready
+    ret                              # _else: return
+##################################
+asm_write_hex:
+    mv      t6, ra                # save return address to t6
+    mv      t3, a0                # save number to print to t3
+    mv      t4, a1                # save number of digits to t4
+awh_loop:
+    addi    t4, t4, -1            # decrement number of digits
+    sll     t1, t4, 2             # multiply number of digits by 4
+    srl     t0, t3, t1            # shifts value for next digit
+    andi    t0, t0, 0xF           # get one digit -> t5
+    addi    t0, t0, 0x30          # increments 0x30 to convert to char
+    li      t1, 0x39              # load comparison value
+    ble     t0, t1, awh_print     # if digit is number [0-9], jumps to print
+    addi    t0, t0, 0x7           # increment for hex char values [A-F]
+awh_print:
+    mv      a0, t0                # load char to argument
+    call    asm_putchar           # call putchar function
+awh_end_loop:
+    bgt     t4, x0, awh_loop      # if number is greater than zero, loop
+awh_end:
+    li      a0, 0x0A              # load line break char
+    call    asm_putchar           # call putchar function
+    mv      ra, t6                # load return address
+    ret
 /*-----------------------------------------------------------*/
 
 freertos_risc_v_application_interrupt_handler:
@@ -338,7 +566,10 @@ asynchronous_interrupt:
     j handle_interrupt
 
 synchronous_exception:
+    li   t0, 0x18                       /* load immediate for event handler faults */
+    beq  a0, t0, skip_pc_increment      /* in case it is an event from event handler, skip increment of PC to reexecute instruction */
     addi a1, a1, 4                      /* Synchronous so update exception return address to the instruction after the instruction that generated the exception. */
+skip_pc_increment:
     store_x a1, 0( sp )                 /* Save updated exception return address. */
     load_x sp, xISRStackTop             /* Switch to ISR stack. */
     j handle_exception
