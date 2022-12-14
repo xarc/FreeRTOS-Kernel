@@ -71,4 +71,8 @@ freertos_risc_v_application_exception_handler(void *arg)
 }
 #endif
 
+int statsTotalErrors();
+int statsTotalFixed();
+int statsTotalRequests();
+
 #endif // TMR_H_

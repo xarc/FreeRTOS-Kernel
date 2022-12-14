@@ -16,14 +16,20 @@
 #include "tmr.h"
 #include "tmr_queue.h"
 
+struct TmrStats {
+	int errors;
+	int fixed;
+	int totalRequests;
+};
+
 struct TmrCtx {
 	uint8_t done;
 	uint8_t ready;
 	uint8_t ok;
-	uint8_t err;
 	QueueHandle_t data;
 	node_t *prvTaskQueue;
 	struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH];
+	struct TmrStats *stats;
 };
 
 struct TmrCtx *ctx = NULL;
@@ -34,9 +40,13 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 	ctx = pvPortMalloc(sizeof(struct TmrCtx *));
 	ctx->data = xQueueCreate(TMR_QUEUE_LENGTH, sizeof(int));
 
+	ctx->stats = pvPortMalloc(sizeof(struct TmrStats *));
+	ctx->stats->errors = 0;
+	ctx->stats->totalRequests = 0;
+	ctx->stats->fixed = 0;
+
 	ctx->ok = 0;
 	ctx->done = 0;
-	ctx->err = 0;
 	ctx->ready = 0;
 
 	va_list argp;
@@ -53,6 +63,21 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 
 	va_end(argp);
 	ctx->prvTaskQueue = q;
+}
+
+int statsTotalErrors()
+{
+	return ctx->stats->errors;
+}
+
+int statsTotalFixed()
+{
+	return ctx->stats->fixed;
+}
+
+int statsTotalRequests()
+{
+	return ctx->stats->totalRequests;
 }
 
 /// Find task queue position
@@ -101,6 +126,7 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 	ctx->prvDataQueue[index] = t;
 	ctx->ready++;
+	ctx->stats->totalRequests++;
 
 	int value;
 	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
@@ -229,10 +255,9 @@ void vTmrCompareV2()
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
 	ctx->ok = 1;
-	ctx->err = 0;
 
 	int size = data[0]->size;
-	int i;
+	int i, err = 0;
 	// we go through bit-by-bit
 	for (i = 0; i < size; i++) {
 		// most common word
@@ -242,7 +267,8 @@ void vTmrCompareV2()
 		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
 
 		if (err_a || err_b || err_c) {
-			ctx->err = 1;
+			err = 1;
+			ctx->stats->errors++;
 			if (err_a && err_b && err_c) {
 				ctx->ok = 0;
 				__asm__ __volatile__("unimp"); // make it burn
@@ -254,12 +280,17 @@ void vTmrCompareV2()
 		*b = mode;
 		*c = mode;
 
+		if (err) {
+			ctx->stats->fixed++;
+			err = 0;
+		}
+
 		a++;
 		b++;
 		c++;
 	}
-	ctx->done = 1;
 
+	ctx->done = 1;
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
 			xQueueSend(ctx->data, (void *)&a, portMAX_DELAY);
