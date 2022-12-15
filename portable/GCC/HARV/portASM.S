@@ -440,6 +440,7 @@ loop_jallog:
     lw      a0, 0(a0)
     li      a1, 1
     call    asm_write_hex
+#endif
 
     /* error correction of memory events */
     li      a0, MEM_EH_EVENT_ID                            # load event id address
