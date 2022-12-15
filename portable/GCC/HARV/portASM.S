@@ -314,6 +314,7 @@ freertos_risc_v_application_exception_handler:
 .equ MEM_EH_MEM_PREV_ADDR, 0x70800018
 .equ MEM_EH_ENABLE,        0x70800010
 
+#ifndef SKIP_HARV_TRAP_REPORT
 harv_exception_report_trap_info:
     /* print TRAP */
     li      a0, 0x0A
@@ -452,6 +453,18 @@ loop_jallog:
     sw      s1, 0(s0)                                      # write data back to memory to remove the ecc error
 harv_report_trap_info_skip_correction:
 
+#ifdef FAULT_TRAP_HANDLER
+    csrr    a0, mcause                                     # read mcause csr
+    csrr    a1, mepc                                       # read mepc csr
+    li      a2, EH_EVENT_ID                                # get event handler address
+    lw      a2, 0(a2)                                      # get processor event id
+    li      a3, MEM_EH_EVENT_ID                            # get memory event handler address
+    lw      a3, 0(a3)                                      # get memory eventh handler id
+    call    FAULT_TRAP_HANDLER
+    lw      ra, 0(sp)                                      # restore return address
+    addi    sp, sp, 4                                      # increment stack pointer
+    ret
+#else
     csrr a0, mcause                                        # read mcause csr
     li   t0, 0x18                                          # load immediate for event handler faults
     bne  a0, t0, harv_handle_failure_exception             # in case it is not an event from event handler, go to failure exception procedure
@@ -464,6 +477,8 @@ harv_report_trap_info_skip_correction:
 harv_handle_failure_exception:
     call wdt_reset
     j    harv_handle_failure_exception
+
+#endif
 
 ##############################################
 asm_putchar:
