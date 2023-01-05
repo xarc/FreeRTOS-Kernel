@@ -277,6 +277,9 @@ xPortStartFirstTask:
 /*-----------------------------------------------------------*/
 
 freertos_risc_v_application_exception_handler:
+    addi    sp, sp, -4                                     # decrement stack pointer
+    sw      ra, 0(sp)                                      # save return address
+    
     csrr t0, mcause     /* For viewing in the debugger only. */
     csrr t1, mepc       /* For viewing in the debugger only */
     csrr t2, mstatus    /* For viewing in the debugger only */
