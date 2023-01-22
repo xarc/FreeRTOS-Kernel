@@ -263,6 +263,8 @@ void vTmrCompareV2()
 	uint8_t a_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) a || (unsigned long) a > (unsigned long) &RAM_HIGH_ADDR);
 	uint8_t b_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) b || (unsigned long) b > (unsigned long) &RAM_HIGH_ADDR);
 	uint8_t c_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) c || (unsigned long) c > (unsigned long) &RAM_HIGH_ADDR);
+
+	uint8_t *final_result;
 	
 	if (a_in_range == 0 || b_in_range == 0 || c_in_range == 0) {
 		uint8_t *x = NULL;
@@ -310,6 +312,7 @@ void vTmrCompareV2()
 				x++;
 				y++;
 			}
+			final_result = x;
 
 		} else {
 			// more than 1 incorrect address
@@ -355,12 +358,13 @@ void vTmrCompareV2()
 			b++;
 			c++;
 		}
+		final_result = a;
 	}
 	
 	ctx->done = 1;
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
-			xQueueSend(ctx->data, (void *)&a, portMAX_DELAY);
+			xQueueSend(ctx->data, (void *)&final_result, portMAX_DELAY);
 			ctx->ready--;
 		}
 	}
