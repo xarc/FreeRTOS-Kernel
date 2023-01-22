@@ -250,11 +250,11 @@ void vTmrCompareV2()
 	portENTER_CRITICAL();
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
-	int size = data[0]->size;
-	int i, err = 0;
-
 	// TODO: Check if last loop is necessary
 	memcpy(data, ctx->prvDataQueue, sizeof(data));
+
+	int size = data[0]->size;
+	int i, err = 0;
 
 	uint8_t *a = (uint8_t *)data[0]->addr;
 	uint8_t *b = (uint8_t *)data[1]->addr;
