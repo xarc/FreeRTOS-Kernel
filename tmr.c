@@ -242,10 +242,16 @@ void exception_handler(void *arg)
 }
 #endif
 
+extern unsigned long RAM_BASE_ADDR;
+extern unsigned long RAM_HIGH_ADDR;
+
 void vTmrCompareV2()
 {
 	portENTER_CRITICAL();
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
+
+	int size = data[0]->size;
+	int i, err = 0;
 
 	// TODO: Check if last loop is necessary
 	memcpy(data, ctx->prvDataQueue, sizeof(data));
@@ -254,42 +260,103 @@ void vTmrCompareV2()
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
-	ctx->ok = 1;
+	uint8_t a_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) a || (unsigned long) a > (unsigned long) &RAM_HIGH_ADDR);
+	uint8_t b_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) b || (unsigned long) b > (unsigned long) &RAM_HIGH_ADDR);
+	uint8_t c_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) c || (unsigned long) c > (unsigned long) &RAM_HIGH_ADDR);
+	
+	if (a_in_range == 0 || b_in_range == 0 || c_in_range == 0) {
+		uint8_t *x = NULL;
+		uint8_t *y = NULL;
 
-	int size = data[0]->size;
-	int i, err = 0;
-	// we go through bit-by-bit
-	for (i = 0; i < size; i++) {
-		// most common word
-		uint8_t mode = (*a & *b) | (*a & *c) | (*b & *c);
-		uint8_t err_a = (*a ^ *b) && (*a ^ *c);
-		uint8_t err_b = (*b ^ *a) && (*b ^ *c);
-		uint8_t err_c = (*c ^ *a) && (*c ^ *b);
-
-		if (err_a || err_b || err_c) {
-			err = 1;
-			ctx->stats->errors++;
-			if (err_a && err_b && err_c) {
-				ctx->ok = 0;
-				__asm__ __volatile__("unimp"); // make it burn
-			}
+		if (a_in_range && b_in_range) {
+			x = a;
+			y = b;
+		}
+		if (a_in_range && c_in_range) {
+			x = a;
+			y = c;
+		}
+		if (b_in_range && c_in_range) {
+			x = b;
+			y = c;
 		}
 
-		// correct it in case
-		*a = mode;
-		*b = mode;
-		*c = mode;
+		if (x != NULL && y != NULL) {
+			ctx->ok = 1;
 
-		if (err) {
-			ctx->stats->fixed++;
+			// we go through bit-by-bit
 			err = 0;
+			for (i = 0; i < size; i++) {
+				uint8_t error = (*x ^ *y);
+
+				if (error) {
+					err = 1;
+					ctx->stats->errors++;
+					ctx->ok = 0;
+					__asm__ __volatile__("unimp"); // make it burn
+					_write(1, "halt-sim\n", 9);
+				}
+
+				// TODO: try to attribute an address to faulty ones
+				// *a = mode;
+				// *b = mode;
+				// *c = mode;
+
+				if (err) {
+					ctx->stats->fixed++;
+					err = 0;
+				}
+
+				x++;
+				y++;
+			}
+
+		} else {
+			// more than 1 incorrect address
+			ctx->stats->errors++;
+			ctx->ok = 0;
+			__asm__ __volatile__("unimp"); // make it burn
+			_write(1, "halt-sim\n", 9);
 		}
+		
+	} else {
+		ctx->ok = 1;
 
-		a++;
-		b++;
-		c++;
+		// we go through bit-by-bit
+		err = 0;
+		for (i = 0; i < size; i++) {
+			// most common word
+			uint8_t mode = (*a & *b) | (*a & *c) | (*b & *c);
+			uint8_t err_a = (*a ^ *b) && (*a ^ *c);
+			uint8_t err_b = (*b ^ *a) && (*b ^ *c);
+			uint8_t err_c = (*c ^ *a) && (*c ^ *b);
+
+			if (err_a || err_b || err_c) {
+				err = 1;
+				ctx->stats->errors++;
+				if (err_a && err_b && err_c) {
+					ctx->ok = 0;
+					__asm__ __volatile__("unimp"); // make it burn
+					_write(1, "halt-sim\n", 9);
+				}
+			}
+
+			// correct it in case
+			*a = mode;
+			*b = mode;
+			*c = mode;
+
+			if (err) {
+				ctx->stats->fixed++;
+				err = 0;
+			}
+
+			a++;
+			b++;
+			c++;
+		}
 	}
-
+	
 	ctx->done = 1;
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
