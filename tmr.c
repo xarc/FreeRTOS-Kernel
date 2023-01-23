@@ -260,9 +260,9 @@ void vTmrCompareV2()
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
-	uint8_t a_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) a || (unsigned long) a > (unsigned long) &RAM_HIGH_ADDR);
-	uint8_t b_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) b || (unsigned long) b > (unsigned long) &RAM_HIGH_ADDR);
-	uint8_t c_in_range = ((unsigned long) &RAM_BASE_ADDR > (unsigned long) c || (unsigned long) c > (unsigned long) &RAM_HIGH_ADDR);
+	uint8_t a_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) a || (unsigned long) a <= ((unsigned long) &RAM_HIGH_ADDR)-size);
+	uint8_t b_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) b || (unsigned long) b <= ((unsigned long) &RAM_HIGH_ADDR)-size);
+	uint8_t c_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) c || (unsigned long) c <= ((unsigned long) &RAM_HIGH_ADDR)-size);
 
 	uint8_t *final_result;
 	
