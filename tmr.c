@@ -295,7 +295,8 @@ void vTmrCompareV2()
 					err = 1;
 					ctx->stats->errors++;
 					ctx->ok = 0;
-					__asm__ __volatile__("unimp"); // make it burn
+					// __asm__ __volatile__("unimp"); // make it burn
+					_write(1, "wrong value\n", 12);
 					_write(1, "halt-sim\n", 9);
 				}
 
@@ -318,12 +319,15 @@ void vTmrCompareV2()
 			// more than 1 incorrect address
 			ctx->stats->errors++;
 			ctx->ok = 0;
-			__asm__ __volatile__("unimp"); // make it burn
+			// __asm__ __volatile__("unimp"); // make it burn
+			_write(1, "addr err > 1\n", 13);
 			_write(1, "halt-sim\n", 9);
 		}
 		
 	} else {
 		ctx->ok = 1;
+
+		_write(1, "all in range\n", 13);
 
 		// we go through bit-by-bit
 		err = 0;
@@ -339,7 +343,7 @@ void vTmrCompareV2()
 				ctx->stats->errors++;
 				if (err_a && err_b && err_c) {
 					ctx->ok = 0;
-					__asm__ __volatile__("unimp"); // make it burn
+					// __asm__ __volatile__("unimp"); // make it burn
 					_write(1, "halt-sim\n", 9);
 				}
 			}
