@@ -317,7 +317,7 @@ freertos_risc_v_application_exception_handler:
 .equ MEM_EH_MEM_PREV_ADDR, 0x70800018
 .equ MEM_EH_ENABLE,        0x70800010
 
-#ifndef SKIP_HARV_TRAP_REPORT
+#ifndef SKIP_TRAP_REPORT
 harv_exception_report_trap_info:
     /* print TRAP */
     li      a0, 0x0A
