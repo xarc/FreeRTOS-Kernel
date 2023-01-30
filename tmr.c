@@ -295,9 +295,11 @@ void vTmrCompareV2()
 					err = 1;
 					ctx->stats->errors++;
 					ctx->ok = 0;
-					// __asm__ __volatile__("unimp"); // make it burn
-					_write(1, "wrong value\n", 12);
+					_write(1, "TMR COMPARE: 1 incorrect address and two different values\n", 58);
+#ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
+#endif
+					// __asm__ __volatile__("unimp"); // make it burn
 				}
 
 				// TODO: try to attribute an address to faulty ones
@@ -319,9 +321,11 @@ void vTmrCompareV2()
 			// more than 1 incorrect address
 			ctx->stats->errors++;
 			ctx->ok = 0;
-			// __asm__ __volatile__("unimp"); // make it burn
-			_write(1, "addr err > 1\n", 13);
+			_write(1, "TMR COMPARE: more than 1 incorrect address\n", 43);
+#ifdef IS_SIMULATION
 			_write(1, "halt-sim\n", 9);
+#endif
+			// __asm__ __volatile__("unimp"); // make it burn
 		}
 		
 	} else {
@@ -343,8 +347,11 @@ void vTmrCompareV2()
 				ctx->stats->errors++;
 				if (err_a && err_b && err_c) {
 					ctx->ok = 0;
-					// __asm__ __volatile__("unimp"); // make it burn
+					_write(1, "TMR COMPARE: a <> b <> c\n", 25);
+#ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
+#endif
+					// __asm__ __volatile__("unimp"); // make it burn
 				}
 			}
 
