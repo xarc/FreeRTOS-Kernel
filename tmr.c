@@ -128,6 +128,7 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	ctx->ready++;
 	ctx->stats->totalRequests++;
 
+#ifndef DISABLE_SOFTWARE_TMR
 	int value;
 	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
 		taskENTER_CRITICAL();
@@ -138,6 +139,9 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	}
 
 	return TMR_ERR;
+#else
+	return TMR_OK;
+#endif
 }
 
 void vPrintTasks()
@@ -172,6 +176,7 @@ void vTmrCleanDataQueue()
 	}
 }
 
+#ifndef DISABLE_SOFTWARE_TMR
 void *vTmrCompare(TYPE t)
 {
 	if (iTmrPullData())
@@ -232,6 +237,7 @@ void *vTmrCompare(TYPE t)
 
 	return NULL;
 }
+#endif
 
 #ifdef FT_EXCEPTION_HANDLER
 void exception_handler(void *arg)
@@ -242,6 +248,7 @@ void exception_handler(void *arg)
 }
 #endif
 
+#ifndef DISABLE_SOFTWARE_TMR
 extern unsigned long RAM_BASE_ADDR;
 extern unsigned long RAM_HIGH_ADDR;
 
@@ -260,12 +267,18 @@ void vTmrCompareV2()
 	uint8_t *b = (uint8_t *)data[1]->addr;
 	uint8_t *c = (uint8_t *)data[2]->addr;
 
-	uint8_t a_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) a && (unsigned long) a <= ((unsigned long) &RAM_HIGH_ADDR)-size);
-	uint8_t b_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) b && (unsigned long) b <= ((unsigned long) &RAM_HIGH_ADDR)-size);
-	uint8_t c_in_range = ((unsigned long) &RAM_BASE_ADDR <= (unsigned long) c && (unsigned long) c <= ((unsigned long) &RAM_HIGH_ADDR)-size);
+	uint8_t a_in_range =
+		((unsigned long)&RAM_BASE_ADDR <= (unsigned long)a &&
+		 (unsigned long)a <= ((unsigned long)&RAM_HIGH_ADDR) - size);
+	uint8_t b_in_range =
+		((unsigned long)&RAM_BASE_ADDR <= (unsigned long)b &&
+		 (unsigned long)b <= ((unsigned long)&RAM_HIGH_ADDR) - size);
+	uint8_t c_in_range =
+		((unsigned long)&RAM_BASE_ADDR <= (unsigned long)c &&
+		 (unsigned long)c <= ((unsigned long)&RAM_HIGH_ADDR) - size);
 
 	uint8_t *final_result;
-	
+
 	if (a_in_range == 0 || b_in_range == 0 || c_in_range == 0) {
 		uint8_t *x = NULL;
 		uint8_t *y = NULL;
@@ -295,7 +308,9 @@ void vTmrCompareV2()
 					err = 1;
 					ctx->stats->errors++;
 					ctx->ok = 0;
-					_write(1, "TMR COMPARE: 1 incorrect address and two different values\n", 58);
+					_write(1,
+					       "TMR COMPARE: 1 incorrect address and two different values\n",
+					       58);
 #ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
 #endif
@@ -321,13 +336,15 @@ void vTmrCompareV2()
 			// more than 1 incorrect address
 			ctx->stats->errors++;
 			ctx->ok = 0;
-			_write(1, "TMR COMPARE: more than 1 incorrect address\n", 43);
+			_write(1,
+			       "TMR COMPARE: more than 1 incorrect address\n",
+			       43);
 #ifdef IS_SIMULATION
 			_write(1, "halt-sim\n", 9);
 #endif
 			// __asm__ __volatile__("unimp"); // make it burn
 		}
-		
+
 	} else {
 		ctx->ok = 1;
 
@@ -347,7 +364,8 @@ void vTmrCompareV2()
 				ctx->stats->errors++;
 				if (err_a && err_b && err_c) {
 					ctx->ok = 0;
-					_write(1, "TMR COMPARE: a <> b <> c\n", 25);
+					_write(1, "TMR COMPARE: a <> b <> c\n",
+					       25);
 #ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
 #endif
@@ -371,11 +389,12 @@ void vTmrCompareV2()
 		}
 		final_result = a;
 	}
-	
+
 	ctx->done = 1;
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
-			xQueueSend(ctx->data, (void *)&final_result, portMAX_DELAY);
+			xQueueSend(ctx->data, (void *)&final_result,
+				   portMAX_DELAY);
 			ctx->ready--;
 		}
 	}
@@ -386,3 +405,4 @@ static void vTmrCompareV2Asm()
 {
 	return vTmrCompareV2();
 }
+#endif

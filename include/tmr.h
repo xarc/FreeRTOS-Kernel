@@ -47,8 +47,10 @@ int iTmrPullData();
 // check if data is full
 void *iTmrDataByIndex(int);
 
+#ifndef DISABLE_SOFTWARE_TMR
 // compare values in queue
 void *vTmrCompare(TYPE);
+#endif
 
 // wait untill all data is completed
 void vTmrWaitForData();
@@ -58,9 +60,11 @@ void vTmrCleanDataQueue();
 
 void exception_handler(void *);
 
+#ifndef DISABLE_SOFTWARE_TMR
 void vTmrCompareV2();
 
 static void vTmrCompareV2Asm();
+#endif
 
 #ifdef FT_EXCEPTION_HANDLER
 void __attribute__((weak))
