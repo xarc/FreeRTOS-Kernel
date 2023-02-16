@@ -255,6 +255,8 @@ extern unsigned long RAM_HIGH_ADDR;
 void vTmrCompareV2()
 {
 	portENTER_CRITICAL();
+	_write(1, "-> Info: Comparing all three values.\n", 37);
+
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
 
 	// TODO: Check if last loop is necessary
@@ -309,8 +311,8 @@ void vTmrCompareV2()
 					ctx->stats->errors++;
 					ctx->ok = 0;
 					_write(1,
-					       "TMR COMPARE: 1 incorrect address and two different values\n",
-					       58);
+					       "-> Error: 1 incorrect address and two different values. Halting processor.\n",
+					       75);
 #ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
 #endif
@@ -337,8 +339,8 @@ void vTmrCompareV2()
 			ctx->stats->errors++;
 			ctx->ok = 0;
 			_write(1,
-			       "TMR COMPARE: more than 1 incorrect address\n",
-			       43);
+			       "-> Error: More than 1 address out of range. Halting processor.\n",
+			       63);
 #ifdef IS_SIMULATION
 			_write(1, "halt-sim\n", 9);
 #endif
@@ -348,7 +350,9 @@ void vTmrCompareV2()
 	} else {
 		ctx->ok = 1;
 
-		_write(1, "all in range\n", 13);
+		_write(1,
+		       "-> Info: All value addresses are within the memory range.\n",
+		       58);
 
 		// we go through bit-by-bit
 		err = 0;
@@ -364,8 +368,9 @@ void vTmrCompareV2()
 				ctx->stats->errors++;
 				if (err_a && err_b && err_c) {
 					ctx->ok = 0;
-					_write(1, "TMR COMPARE: a <> b <> c\n",
-					       25);
+					_write(1,
+					       "-> Error: when comparing values: 1 incorrect address and two different values. Halting processor.",
+					       97);
 #ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
 #endif
