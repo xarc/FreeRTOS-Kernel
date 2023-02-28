@@ -125,8 +125,10 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 	}
 
 	ctx->prvDataQueue[index] = t;
+	taskENTER_CRITICAL();
 	ctx->ready++;
 	ctx->stats->totalRequests++;
+	taskEXIT_CRITICAL();
 
 #ifndef DISABLE_SOFTWARE_TMR
 	int value;
