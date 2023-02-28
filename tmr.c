@@ -30,6 +30,7 @@ struct TmrCtx {
 	node_t *prvTaskQueue;
 	struct TmrTask *prvDataQueue[TMR_QUEUE_LENGTH];
 	struct TmrStats *stats;
+	EventGroupHandle_t syncEventGroupHandle;
 };
 
 struct TmrCtx *ctx = NULL;
@@ -60,6 +61,8 @@ void vTmrInit(TASK_FUNCTION_PTR(a), ...)
 		ctx->prvDataQueue[i] = NULL;
 	}
 	ctx->prvDataQueue[TMR_QUEUE_LENGTH - 1] = NULL;
+
+	ctx->syncEventGroupHandle = xEventGroupCreate();
 
 	va_end(argp);
 	ctx->prvTaskQueue = q;
@@ -132,14 +135,22 @@ int iTmrInsertValue(TASK_FUNCTION_PTR(task), void *addr, int size)
 
 #ifndef DISABLE_SOFTWARE_TMR
 	int value;
-	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY)) {
+	if (xQueueReceive(ctx->data, (void *)&value, portMAX_DELAY) == pdTRUE) {
 		taskENTER_CRITICAL();
 		vPortFree(ctx->prvDataQueue[index]);
 		ctx->prvDataQueue[index] = NULL;
 		taskEXIT_CRITICAL();
+
+		// sync tasks
+		EventBits_t uxReturn = xEventGroupSync(ctx->syncEventGroupHandle, (1 << index), 0b111, portMAX_DELAY);
+		if( ( uxReturn & 0b111 ) != 0b111 ) {
+			// other tasks did not reach sync point after delay, maybe there is a stuck task
+			return TMR_ERR;
+		}
+
 		return TMR_OK;
 	}
-
+	// other tasks did not reach sync point after delay, maybe there is a stuck task
 	return TMR_ERR;
 #else
 	return TMR_OK;
@@ -153,13 +164,14 @@ void vPrintTasks()
 
 int iTmrPullData()
 {
-	int i = 0;
-	for (; i < TMR_QUEUE_LENGTH; i++) {
-		if (ctx->prvDataQueue[i] == NULL) {
-			return 0;
-		}
-	}
-	return 1;
+	return (ctx->ready == 3) ? 1 : 0;
+	// int i = 0;
+	// for (; i < TMR_QUEUE_LENGTH; i++) {
+	// 	if (ctx->prvDataQueue[i] == NULL) {
+	// 		return 0;
+	// 	}
+	// }
+	// return 1;
 }
 
 void vTmrWaitForData()
@@ -256,7 +268,7 @@ extern unsigned long RAM_HIGH_ADDR;
 
 void vTmrCompareV2()
 {
-	portENTER_CRITICAL();
+	vTaskSuspendAll();
 	_write(1, "-> Info: Comparing all three values.\n", 37);
 
 	struct TmrTask *data[TMR_QUEUE_LENGTH] = {};
@@ -371,8 +383,8 @@ void vTmrCompareV2()
 				if (err_a && err_b && err_c) {
 					ctx->ok = 0;
 					_write(1,
-					       "-> Error: when comparing values: 1 incorrect address and two different values. Halting processor.",
-					       97);
+					       "-> Error: when comparing values: 1 incorrect address and two different values. Halting processor.\n",
+					       98);
 #ifdef IS_SIMULATION
 					_write(1, "halt-sim\n", 9);
 #endif
@@ -396,16 +408,15 @@ void vTmrCompareV2()
 		}
 		final_result = a;
 	}
+	xTaskResumeAll();
 
 	ctx->done = 1;
 	if (ctx->ok) {
 		for (i = 0; i < TMR_QUEUE_LENGTH; i++) {
-			xQueueSend(ctx->data, (void *)&final_result,
-				   portMAX_DELAY);
+			xQueueSend(ctx->data, (void *)&final_result, portMAX_DELAY);
 			ctx->ready--;
 		}
 	}
-	portEXIT_CRITICAL();
 }
 
 static void vTmrCompareV2Asm()

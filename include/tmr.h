@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "semphr.h"
+#include "event_groups.h"
 #include <sys/types.h>
 
 #define TMR_SECTION __attribute__((section(".tmr")))
