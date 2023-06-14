@@ -457,7 +457,7 @@ loop_jallog:
     sw      s1, 0(s0)                                      # write data back to memory to remove the ecc error
 harv_report_trap_info_skip_correction:
 
-#ifdef FAULT_TRAP_HANDLER
+#if FAULT_TRAP_HANDLER
     csrr    a0, mcause                                     # read mcause csr
     csrr    a1, mepc                                       # read mepc csr
     li      a2, EH_EVENT_ID                                # get event handler address
