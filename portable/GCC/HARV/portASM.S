@@ -285,37 +285,7 @@ freertos_risc_v_application_exception_handler:
     csrr t2, mstatus    /* For viewing in the debugger only */
 
     /* Report all HARV event report */
-# CSR addresses
-.equ CSR_RSTCAUSE_ADDR,    0x7C0
-.equ CSR_HARDEN_CONF_ADDR, 0x7C1
-# peripherals addresses
-.equ UART_INTERFACE_ADDR, 0x80000000 # UART base address in AMBA bus
-.equ UART_BAUD_REG_ADDR,  0x80000004
-.equ UART_PARITY_ADDR,    0x80000008
-.equ UART_RTSCTS_ADDR,    0x8000000C
-.equ UART_STATUS_ADDR,    0x80000010
-.equ WDT_ADDR,            0x80000100 # WDT base address in AMBA bus
-.equ GPIO_BASE_ADDR,      0x80000204 # GPIO pins address in AMBA bus
-.equ MEM_EH_ADDR,         0x70800000 # memory event handler address in AMBA bus
-# event handler addresses
-.equ EH_EVENT_ID,          0x01000000
-.equ EH_PC,                0x01000004
-.equ EH_INSTR,             0x01000008
-.equ EH_ENC_DATA,          0x0100000C
-.equ EH_ENC_DATA_ECC,      0x01000010
-.equ EH_ALU_RESULT,        0x01000014
-.equ EH_MCYCLE,            0x01000018
-.equ EH_MCYCLEH,           0x0100001C
-.equ EH_JALLOG_PTR,        0x01000020
-.equ EH_JALLOG_SIZE,       0x01000024
-.equ EH_JALLOG_BASE,       0x01000800
-.equ MEM_EH_EVENT_ID,      0x70800000
-.equ MEM_EH_MEM_ADDR,      0x70800004
-.equ MEM_EH_MEM_ECC_ADDR,  0x70800014
-.equ MEM_EH_ENC_DATA,      0x70800008
-.equ MEM_EH_ENC_DATA_ECC,  0x7080000C
-.equ MEM_EH_MEM_PREV_ADDR, 0x70800018
-.equ MEM_EH_ENABLE,        0x70800010
+#include "defines.h"
 
 #ifndef SKIP_TRAP_REPORT
 harv_exception_report_trap_info:
@@ -345,6 +315,7 @@ harv_exception_report_trap_info:
     li      a1, 8
     call    asm_write_hex
 
+#if EH_ENABLED == 1
     # PRINT EVENT INFORMATION
     li      a0, EH_EVENT_ID
     lw      a0, 0(a0)
@@ -406,9 +377,10 @@ loop_jallog:
     call    asm_write_hex        # call hex write print
     addi    s0, s0, 4            # increment JALLOG pointer to data
     bltu    s0, s1, loop_jallog  # if it's not last address, loop
+#endif
 
     ## MEM event handler
-
+#if MEM_EH_ENABLED == 1
     li      a0, MEM_EH_EVENT_ID
     lw      a0, 0(a0)
     li      a1, 1
@@ -444,6 +416,66 @@ loop_jallog:
     li      a1, 1
     call    asm_write_hex
 #endif
+#endif
+
+#if MEM_EH_ENABLED == 1
+    /* error correction of memory events */
+    li      a0, MEM_EH_EVENT_ID              # load event id address
+    lw      a0, 0(a0)                        # read memory event id
+    beq     a0, x0, skip_correction          # if there are no memory events, skips correction
+    li      s0, MEM_EH_MEM_ADDR              # load address of error address
+    lw      s0, 0(s0)                        # read error address
+    la      t0, MEM_EH_BASE_MEM_ADDR         # load memory base address
+    add     s0, s0, t0                       # increment with base RAM address
+    lw      s1, 0(s0)                        # read data with error
+    sw      s1, 0(s0)                        # write data back to memory to remove the ecc error
+skip_correction:
+#endif
+
+#if CMEM_EH_ENABLED == 1
+
+    ## CMEM event handler
+    li      a0, CMEM_EH_EVENT_ID
+    lw      a0, 0(a0)
+    li      a1, 2
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_SYNDROME
+    lw      a0, 0(a0)
+    li      a1, 4
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_FAR
+    lw      a0, 0(a0)
+    li      a1, 7
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_SYNWORD
+    lw      a0, 0(a0)
+    li      a1, 2
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_SYNBIT
+    lw      a0, 0(a0)
+    li      a1, 2
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_ADDITIONAL
+    lw      a0, 0(a0)
+    li      a1, 1
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_ECCERROR
+    lw      a0, 0(a0)
+    li      a1, 1
+    call    asm_write_hex
+
+    li      a0, CMEM_EH_CRCERROR
+    lw      a0, 0(a0)
+    li      a1, 1
+    call    asm_write_hex
+
+#endif
 
     /* error correction of memory events */
     li      a0, MEM_EH_EVENT_ID                            # load event id address
@@ -457,7 +489,7 @@ loop_jallog:
     sw      s1, 0(s0)                                      # write data back to memory to remove the ecc error
 harv_report_trap_info_skip_correction:
 
-#if (defined(FAULT_TRAP_HANDLER) && FAULT_TRAP_HANDLER != 0)
+#if (FAULT_TRAP_HANDLER != 0)
     csrr    a0, mcause                                     # read mcause csr
     csrr    a1, mepc                                       # read mepc csr
     li      a2, EH_EVENT_ID                                # get event handler address
@@ -469,18 +501,44 @@ harv_report_trap_info_skip_correction:
     addi    sp, sp, 4                                      # increment stack pointer
     ret
 #else
-    csrr a0, mcause                                        # read mcause csr
-    li   t0, 0x18                                          # load immediate for event handler faults
-    bne  a0, t0, harv_handle_failure_exception             # in case it is not an event from event handler, go to failure exception procedure
-    /* when it is event handler fault, return to same instruction */
+    csrr    a0, mcause                       # read trap cause CSR
+    li      a1, 0x00000018                   # load event handler trap cause value
+    beq     a0, a1, handle_hfte              # branch if is custom trap from HARV (HFTE)
+    /* _else: UNRECOVERABLE except, reset SoC using WDT */
+exc_reset_soc:
+    li      a0,   WDT_ADDR                   # load watchdog timer address
+    sw      zero, 0(a0)                      # write zero to watchdog timer to trigger reset
+    j       exc_reset_soc                    # ensure SoC reset
+
+    /* HARV exception handler */
+handle_hfte:
+#if CMEM_EH_ENABLED == 1
+    li      a0, CMEM_EH_EVENT_ID             # load CMEM event id address
+    lw      a0, 0(a0)                        # load CMEM event id
+    beqz    a0, trap_return                  # branch if it is not a CMEM event
+    andi    a0, a0, 0b0100                   # mask to get DOUBLE BIT UPSET flag
+    beqz    a0, trap_return                  # branch if is not a DBU
+                                             # _else: trigger fpga reprogram
+exc_reprogram_fpga:
+    /* print RP\n */
+    li      a0, 0x52
+    call    asm_putchar
+    li      a0, 0x50
+    call    asm_putchar
+    li      a0, 0xA
+    call    asm_putchar
+    /* trigger fpga reprogramming */
+    li      a0, GPIO_CONF_ADDR               # get GPIO configuration address
+    sw      x0, 0(a0)                        # configure all ports as outputs
+    li      a0, GPIO_BASE_ADDR               # get base GPIO address
+    li      a1, 0b1110                       # get data to write to GPIOs
+    sw      a1, 0(a0)                        # write 1 to GPIOs 3, 2, and 1
+    j       exc_reprogram_fpga               # ensure reprogram
+#endif
+    /* return to normal execution, fault is from harv */
     lw      ra, 0(sp)                                      # restore return address
     addi    sp, sp, 4                                      # increment stack pointer
     ret                                                    # return to the application execution
-
-/* if exception cannot be corrected, reset the processor */
-harv_handle_failure_exception:
-    call wdt_reset
-    j    harv_handle_failure_exception
 
 #endif
 
